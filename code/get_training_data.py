@@ -93,11 +93,11 @@ async def create_answers_async(client, model, messages, batch_size=20):
     # async answering
     batched_msgs = batchify(messages, batch_size)
     all_answers = []
-    for batch in batched_msgs:
-        answers = asyncio.gather(*[achat(client, model, m) for m in batch])
-        time.sleep(1)
+    for i, batch in enumerate(batched_msgs):
+        answers = await asyncio.gather(*[achat(client, model, m) for m in batch])
         all_answers.extend(answers)
-    print("Answers Given")
+        print(f"Batch {i} Answers Given")
+        time.sleep(1)
     return all_answers
 
 
