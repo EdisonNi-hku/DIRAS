@@ -59,11 +59,6 @@ For the <list of example information that the question is looking for>, followin
 Here is the question:
 <question>: ""{question}""
 
-Additionally, here is a <list of question-relevant example information> that an expert human labeler annotated. Please keep these examples in mind when answering:
---- [BEGIN <list of question-relevant example information>]
-{examples}
---- [END <list of question-relevant example information>]
-
 Format your reply in the following template and keep your answer concise:
 
 Meaning of the question: <the question's meaning>

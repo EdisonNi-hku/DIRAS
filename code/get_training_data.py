@@ -13,6 +13,7 @@ import argparse
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer
+import pickle
 
 load_dotenv(dotenv_path='apikey.env')
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -79,24 +80,38 @@ def batchify(lst, batch_size):
     return [lst[i:i + batch_size] for i in range(0, len(lst), batch_size)]
 
 
-async def achat(client, model, message):
+async def achat(client, model, message, seed=42, temperature=0):
     out = await client.chat.completions.create(
         messages=message,
         model=model,
-        seed=42,
-        temperature=0,
+        seed=seed,
+        temperature=temperature,
     )
     return out.choices[0].message.content
 
 
-async def create_answers_async(client, model, messages, batch_size=20):
+async def create_answers_async(client, model, messages, batch_size=20, seed=42, temperature=0):
     # async answering
     batched_msgs = batchify(messages, batch_size)
+    print("{} batches to run.".format(len(batched_msgs)))
     all_answers = []
     for i, batch in enumerate(batched_msgs):
-        answers = await asyncio.gather(*[achat(client, model, m) for m in batch])
-        all_answers.extend(answers)
-        print(f"Batch {i} Answers Given")
+        # Save results for each batch to enable rerun when crashed.
+        if os.path.exists(f'batch{i}.pkl'):
+            with open(f'batch{i}.pkl', 'rb') as file:
+                answers = pickle.load(file)
+            all_answers.extend(answers)
+            print(f"Batch{i} directly loaded.")
+        else:
+            try:
+                answers = await asyncio.gather(*[achat(client, model, m, seed, temperature) for m in batch])
+                with open(f'batch{i}.pkl', 'wb') as file:
+                    pickle.dump(answers, file)
+                print(f"Batch{i} run with API.")
+                all_answers.extend(answers)
+            except Exception as e:
+                print(f"Batch {i} Error while gathering answers: {str(e)}")
+        print(f"Batch {i} answers given.")
         time.sleep(1)
     return all_answers
 
@@ -183,8 +198,8 @@ if __name__ == '__main__':
     all_question_non_top = {}
     for report in unique_reports:
         documents = df_docs.loc[df_docs['report'] == report, 'document'].tolist()
-        doc_embeddings = asyncio.run(get_embeddings(async_client, documents, model=MODEL_DICT[args.teacher_llm]))
-        question_embeddings = asyncio.run(get_embeddings(async_client, questions, model=MODEL_DICT[args.teacher_llm]))
+        doc_embeddings = asyncio.run(get_embeddings(async_client, documents))
+        question_embeddings = asyncio.run(get_embeddings(async_client, questions))
         top_document_ids = top_related_documents(question_embeddings, doc_embeddings, top_n=args.top_n)
         for i, q in enumerate(questions):
             top_for_q_i = [d for i, d in enumerate(documents) if i in top_document_ids[i]]

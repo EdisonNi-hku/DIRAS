@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import pickle
 import re
+import numpy as np
 
 from transformers import AutoTokenizer, set_seed, logging
 from vllm import LLM, SamplingParams

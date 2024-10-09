@@ -11,7 +11,7 @@ from scipy.stats import kendalltau
 import calibration as cal
 from rank_eval import Qrels, Run, evaluate
 import pickle
-from inference import find_first_float
+from evaluation import find_first_float
 
 random.seed(42)
 
@@ -124,7 +124,7 @@ def main():
         else:
             prob.append(1 - c)
             binary_label.append(0)
-    df_test = pd.read_csv('full_test_set.csv')
+    df_test = pd.read_csv('data/chatreport_test_results.csv')
     df_test['prob'] = prob
     questions = df_test.Questions.tolist()
     all_questions = []
@@ -134,9 +134,14 @@ def main():
         else:
             all_questions.append(q)
     gpt4_probs = df_test.gpt4_prob.tolist()
-    gpt35_probs = df_test.gpt35_prob.tolist()
     gold_binary = df_test.gold_binary.tolist()
     gold_binary = [1 if 'yes' in l.lower() else 0 for l in gold_binary]
+    correct_binary = []
+    for gold, bi in zip(gold_binary, binary_label):
+        if gold == bi:
+            correct_binary.append(1)
+        else:
+            correct_binary.append(0)
 
     hard = df_test.hard.tolist()
     acc = accuracy_score(gold_binary, binary_label)
@@ -144,7 +149,7 @@ def main():
 
     hard_auc = roc_auc_score(np.array(hard), 1 - np.array(confidences))
     hard_ap = average_precision_score(np.array(hard), 1 - np.array(confidences))
-    relevance_auc = roc_auc_score(np.array(gold_binary), prob)
+    calibration_auc = roc_auc_score(np.array(correct_binary), confidences)
     relevance_ap = average_precision_score(np.array(gold_binary), prob)
 
     calibration_ece = cal.get_ece(np.array(prob), np.array(gold_binary), num_bins=10)
@@ -155,22 +160,19 @@ def main():
     print('Hard auc', hard_auc)
     print('Hard ap', hard_ap)
 
-    print('Relevance auc', relevance_auc)
     print('Relevance ap', relevance_ap)
 
+    print('Calibration auc', calibration_auc)
     print('Calibration ece', calibration_ece)
     print('Calibration brier', calibration_brier)
 
     print('gpt4 rmse', gpt4_rmse)
-    print('gpt4 gpt35 rmse', mean_squared_error(np.array(gpt4_probs), np.array(gpt35_probs), squared=False))
 
     gold_qrels = Qrels()
     gold_bin_qrels = Qrels()
     gpt4_qrels = Qrels()
     gpt4_runs = Run()
     all_gpt4_scores = []
-    gpt35_runs = Run()
-    all_gpt35_scores = []
     student_runs = Run()
     all_student_scores = []
     gold_labels = []
@@ -178,7 +180,6 @@ def main():
     q_ids = []
     all_doc_ids = []
     # gpt4_gold_ndcg_scores = []
-    # gpt35_gold_ndcg_scores = []
     # student_gold_ndcg_scores = []
     # student_gpt4_ndcg_scores = []
     kendall_taus_gpt4_student = []
@@ -202,18 +203,15 @@ def main():
             doc_ids.append('d_' + str(i) + '_' + str(j))
         all_doc_ids.append(doc_ids)
         gpt4_scores = df_test.loc[df_test['Questions'] == q, 'gpt4_prob'].tolist()
-        gpt35_scores = df_test.loc[df_test['Questions'] == q, 'gpt35_prob'].tolist()
         student_scores = df_test.loc[df_test['Questions'] == q, 'prob'].tolist()
 
         # gpt4_gold_ndcg_scores.append(ndcg_score(labels, gpt4_scores))
-        # gpt35_gold_ndcg_scores.append(ndcg_score(labels, gpt35_scores))
         # student_gold_ndcg_scores.append(ndcg_score(labels, student_scores))
         # student_gpt4_ndcg_scores.append(ndcg_score(gpt4_scores, student_scores))
 
         gold_labels.append(labels)
         gold_bin_labels.append(binary_labels)
         all_gpt4_scores.append(gpt4_scores)
-        all_gpt35_scores.append(gpt35_scores)
         all_student_scores.append(student_scores)
         kendall_taus_gold_student.append(kendalltau(student_scores, labels, variant='b').statistic)
         kendall_taus_gpt4_student.append(kendalltau(student_scores, gpt4_scores, variant='b').statistic)
@@ -221,12 +219,10 @@ def main():
     kendall_tau_gpt4_student = sum(kendall_taus_gpt4_student) / len(kendall_taus_gpt4_student)
     kendall_tau_gold_student = sum(kendall_taus_gold_student) / len(kendall_taus_gold_student)
     # print('gpt4 gold', ndcg_score(gold_labels, all_gpt4_scores))
-    # print('gpt35 gold', ndcg_score(gold_labels, all_gpt35_scores))
     # student_gold_ndcg = ndcg_score(gold_labels, all_student_scores)
     # student_gpt4_ndcg = ndcg_score(all_gpt4_scores, all_student_scores)
     # print('student gold', student_gold_ndcg)
     # print('student gpt4', student_gpt4_ndcg)
-    # print('gpt3 gpt4', ndcg_score(all_gpt4_scores, all_gpt35_scores))
     # print('student gold', np.mean(student_gold_ndcg_scores))
     # print('student gpt4', np.mean(student_gpt4_ndcg_scores))
     gold_qrels.add_multi(
@@ -249,11 +245,6 @@ def main():
         doc_ids=all_doc_ids,
         scores=all_gpt4_scores,
     )
-    gpt35_runs.add_multi(
-        q_ids=q_ids,
-        doc_ids=all_doc_ids,
-        scores=all_gpt35_scores,
-    )
     student_runs.add_multi(
         q_ids=q_ids,
         doc_ids=all_doc_ids,
@@ -261,7 +252,6 @@ def main():
     )
 
     print('gpt4 golden', evaluate(gold_qrels, gpt4_runs, ["ndcg", "ndcg@10"]))
-    print('gpt35 golden', evaluate(gold_qrels, gpt35_runs, ["ndcg", "ndcg@10"]))
     student_gold = evaluate(gold_qrels, student_runs, ["ndcg", "ndcg@10"])
     student_bin_gold = evaluate(gold_bin_qrels, student_runs, ["map", "map@10"])
     student_gpt4 = evaluate(gpt4_qrels, student_runs, ["ndcg", "ndcg@10"])
@@ -275,9 +265,7 @@ def main():
         "vague_auc": round(hard_auc, 6),
         "binary_acc": round(acc, 6),
         "binary_f1": round(f1, 6),
-        "relevance_ap": round(relevance_ap, 6),
-        "calibration_avg": round((relevance_auc + 2 - calibration_ece - calibration_brier) / 3, 6),
-        "relevance_auc": round(relevance_auc, 6),
+        "calibration_auc": round(calibration_auc, 6),
         "calibration_ece": round(calibration_ece, 6),
         "calibration_brier": round(calibration_brier, 6),
         "rank_gpt4_rmse": round(gpt4_rmse, 6),
@@ -286,8 +274,11 @@ def main():
         "rank_gold_ndcg": round(student_gold['ndcg'], 6),
         "rank_gold_map": round(student_bin_gold['map'], 6),
         "rank_gold_kentall": round(kendall_tau_gold_student, 6),
-        "rank_gold_avg": round((student_bin_gold['map'] + student_gold['ndcg']) / 2, 6),
         "rank_gold_ndcg@10": round(student_gold['ndcg@10'], 6),
+        "relevance_ap": round(relevance_ap, 6),
+        "calibration_avg": round((calibration_auc + 2 - calibration_ece - calibration_brier) / 3, 6),
+        "rank_gold_avg": round((student_bin_gold['map'] + student_gold['ndcg']) / 2, 6),
+        "avg": round((hard_ap + f1 + (calibration_auc + 2 - calibration_ece - calibration_brier) / 3 + (student_bin_gold['map'] + student_gold['ndcg']) / 2) / 4, 6)
     }, index=[0])
     if os.path.isfile(args.output):
         df = pd.read_excel(args.output)

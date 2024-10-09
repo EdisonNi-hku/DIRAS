@@ -197,7 +197,7 @@ class DataArguments:
 @dataclass
 class TrainingArguments(transformers.Seq2SeqTrainingArguments):
     report_to: str = field(
-        default=None,
+        default="none",
         metadata={"help": "To use wandb or something else for reporting."}
     )
     output_dir: str = field(default='./output', metadata={"help": 'The output dir for logs and checkpoints'})
@@ -362,8 +362,6 @@ def get_accelerate_model(args, checkpoint_dir):
         args.model_name_or_path,
         cache_dir=args.cache_dir,
         padding_side=args.padding_side,
-        use_fast=False,  # Fast tokenizer giving issues.
-        tokenizer_type='llama' if 'llama' in args.model_name_or_path else None,  # Needed for HF name change
         trust_remote_code=args.trust_remote_code,
         local_files_only=True,
     )
@@ -373,19 +371,6 @@ def get_accelerate_model(args, checkpoint_dir):
             tokenizer=tokenizer,
             model=model,
         )
-    if 'llama' in args.model_name_or_path or isinstance(tokenizer, LlamaTokenizer):
-        # LLaMA tokenizer may not have correct special tokens set.
-        # Check and add them if missing to prevent them from being parsed into different tokens.
-        # Note that these are present in the vocabulary.
-        # Note also that `model.config.pad_token_id` is 0 which corresponds to `<unk>` token.
-        print('Adding special tokens.')
-        tokenizer.add_special_tokens({
-            "eos_token": tokenizer.convert_ids_to_tokens(model.config.eos_token_id),
-            "bos_token": tokenizer.convert_ids_to_tokens(model.config.bos_token_id),
-            "unk_token": tokenizer.convert_ids_to_tokens(
-                model.config.pad_token_id if model.config.pad_token_id != -1 else tokenizer.pad_token_id
-            ),
-        })
 
     if not args.full_finetune:
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=args.gradient_checkpointing)
