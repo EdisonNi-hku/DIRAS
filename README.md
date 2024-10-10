@@ -8,7 +8,7 @@ DIRAS solves the following pain points:
 
 Two apparent reasons why using DIRAS instead of [LlamaIndex info-retrieval benchmarking](https://docs.llamaindex.ai/en/stable/module_guides/evaluating/usage_pattern_retrieval/)
 - Reason 1: DIRAS takes domain-specific relevance definition into consideration. It also produce calibrated relevance scores instead of binary relevance labels, addressing the painful "partially relevance" problem.
-- Reason 2: DIRAS achieves superior performance using open-sourced LLMs (verified in our [paper](https://arxiv.org/abs/2406.14162), while LlamaIndex retriever evaluator need API-based LLMs to achieve best outcome.
+- Reason 2: DIRAS achieves superior performance using open-sourced LLMs (verified in our paper, while LlamaIndex retriever evaluator need API-based LLMs to achieve best outcome.
 
 Besides benchmark annotator, DIRAS fine-tuned LLMs can serve as efficient and effective re-rankers to boost RAG performance.
 
@@ -121,6 +121,3 @@ unzip climretrieve_all.zip
 cd ..
 python code/evaluate_climretrieve_all.py
 ```
-
-### ClimRetrieve Re-annotation
-#TODO
