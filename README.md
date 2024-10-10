@@ -1,5 +1,5 @@
 # DIRAS: Efficiently and Effectively Annotate Reliable Information Retrieval Benchmark for Your RAG Appliciation
-Official repository for the paper DIRAS: Efficient LLM-Assisted Annotation of Document Relevance in Retrieval Augmented Generation. [Link to Paper](https://arxiv.org/abs/2406.14162)
+Official repository for the paper DIRAS: Efficient LLM Annotation of Document Relevance in Domain-Specific RAG.
 
 DIRAS solves the following pain points:
 - Pain Point \#1: Without an application-case-specific benchmark, how can we optimize RAG implementation? Especially for the info-retrieval module? -- *DIRAS leverages LLMs to annotate it for you!*
