@@ -1,5 +1,14 @@
-# DIRAS: Efficiently and Effectively Annotate Reliable Information Retrieval Benchmark for Your RAG Appliciation
-Official repository for the paper DIRAS: Efficient LLM Annotation of Document Relevance in Domain-Specific RAG.
+<div align="center">
+<h1>DIRAS: Efficiently and Effectively Annotate Information Retrieval Benchmark for Your RAG Appliciation</h1>
+
+</div>
+
+# 📣 News
+- **[11/Oct/2024]** Training data, test data with LLM predictions, and human evaluations are added for the General Domain QA experiments, in `general_qa_train_data`, `general_qa_all_results`, and `general_qa_hand_eval` correspondingly.
+
+# ✨ The overview of DIRAS
+<div align="center"><img src="overview.png" style="zoom:100%"></div>
+
 
 DIRAS solves the following pain points:
 - Pain Point \#1: Without an application-case-specific benchmark, how can we optimize RAG implementation? Especially for the info-retrieval module? -- *DIRAS leverages LLMs to annotate it for you!*
